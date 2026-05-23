@@ -1,0 +1,62 @@
+@startuml 上架策略测试时序图
+
+actor "JUnit" as test
+participant "PutawayStrategyTest" as pt
+participant "NormalPutaway" as normal
+participant "BatchControlDecorator" as batch
+participant "ExpiryPriorityDecorator" as expiry
+participant "WholeSplitDecorator" as wholeSplit
+participant "ShelfTemplateFactory" as factory
+participant "ShelfTemplate" as tmpl
+
+== 测试1: 普通上架 ==
+test -> pt: testNormalPutaway()
+pt -> normal: execute()
+normal --> pt: "空闲库位就近上架"
+pt -> pt: assertEquals ✓
+
+== 测试2: 普通+批次+效期 ==
+test -> pt: testBatchAndExpiryPutaway()
+pt -> normal: new NormalPutaway()
+pt -> batch: new BatchControlDecorator(normal)
+pt -> expiry: new ExpiryPriorityDecorator(batch)
+pt -> expiry: execute()
+expiry -> batch: execute()
+batch -> normal: execute()
+normal --> batch: "空闲库位就近上架"
+batch --> expiry: "...上架 -> 同批次集中存放"
+expiry --> pt: "...上架 -> 批次 -> 效期"
+pt -> pt: assertTrue(包含三项规则) ✓
+
+== 测试3: 整散分离(4层) ==
+test -> pt: testWholeSplitDecorator()
+pt -> factory: getTemplate("横梁式")
+factory --> pt: tmpl(layers=4)
+pt -> wholeSplit: new WholeSplitDecorator(normal, tmpl)
+pt -> wholeSplit: execute()
+wholeSplit --> pt: "...整托放高层(第3-4层)、散件放低层(第1-2层)"
+pt -> pt: assertTrue(包含层数分配) ✓
+
+== 测试4: 整散分离(5层) ==
+test -> pt: testWholeSplitDecoratorFiveLayers()
+pt -> factory: getTemplate("穿梭式")
+factory --> pt: tmpl(layers=5)
+pt -> wholeSplit: new WholeSplitDecorator(normal, tmpl)
+pt -> wholeSplit: execute()
+wholeSplit --> pt: "...整托放高层(第3-5层)、散件放低层(第1-2层)"
+pt -> pt: assertTrue ✓
+
+== 测试5: 优先级 ==
+test -> pt: testPriority()
+pt -> expiry: new ExpiryPriorityDecorator(normal)
+pt -> batch: new BatchControlDecorator(normal)
+pt -> pt: assertTrue(5 < 10) ✓
+
+== 测试6: 完整组合 ==
+test -> pt: testFullCombination()
+pt -> factory: getTemplate("驶入式")
+pt -> wholeSplit: new WholeSplit(Expiry(Batch(normal)), tmpl)
+pt -> wholeSplit: execute()
+pt -> pt: assertTrue(包含全部4项规则) ✓
+
+@enduml

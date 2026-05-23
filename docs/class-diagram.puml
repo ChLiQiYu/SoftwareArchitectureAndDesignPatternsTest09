@@ -1,0 +1,127 @@
+@startuml WMS类图
+
+' 享元模式
+interface ShelfTemplate {
+    +display(shelfCode: String, area: String): String
+    +getType(): String
+    +getLength(): int
+    +getWidth(): int
+    +getHeight(): int
+    +getMaxLoad(): double
+    +getLayers(): int
+}
+
+class ConcreteShelfTemplate {
+    -type: String
+    -length: int
+    -width: int
+    -height: int
+    -maxLoad: double
+    -layers: int
+    +ConcreteShelfTemplate(type, length, width, height, maxLoad, layers)
+    +display(shelfCode: String, area: String): String
+}
+
+class ShelfTemplateFactory {
+    -pool: Map<String, ShelfTemplate>
+    -disabled: Set<String>
+    -creationCount: int
+    +getTemplate(type: String): ShelfTemplate
+    +disableTemplate(type: String): void
+    +enableTemplate(type: String): void
+    +getCreationCount(): int
+    +getPoolSize(): int
+}
+
+class Shelf {
+    -shelfCode: String
+    -area: String
+    -occupied: boolean
+    -template: ShelfTemplate
+    +display(): String
+    +getShelfCode(): String
+    +getArea(): String
+    +isOccupied(): boolean
+    +setOccupied(occupied: boolean): void
+    +getTemplate(): ShelfTemplate
+}
+
+ShelfTemplate <|.. ConcreteShelfTemplate
+ShelfTemplateFactory o--> ShelfTemplate : 模板池
+Shelf --> ShelfTemplate : 持有模板引用
+
+' 拣货策略装饰器
+interface PickingStrategy {
+    +execute(): String
+    +getPriority(): int
+}
+
+class NormalPicking {
+    +execute(): String
+    +getPriority(): int
+}
+
+abstract class PickingDecorator {
+    #wrapped: PickingStrategy
+    #priority: int
+    +getPriority(): int
+}
+
+class WavePickingDecorator {
+    +execute(): String
+}
+
+class ColdChainPickingDecorator {
+    +execute(): String
+}
+
+class FragilePickingDecorator {
+    +execute(): String
+}
+
+PickingStrategy <|.. NormalPicking
+PickingStrategy <|.. PickingDecorator
+PickingDecorator o--> PickingStrategy : 包装
+PickingDecorator <|-- WavePickingDecorator
+PickingDecorator <|-- ColdChainPickingDecorator
+PickingDecorator <|-- FragilePickingDecorator
+
+' 上架策略装饰器
+interface PutawayStrategy {
+    +execute(): String
+    +getPriority(): int
+}
+
+class NormalPutaway {
+    +execute(): String
+    +getPriority(): int
+}
+
+abstract class PutawayDecorator {
+    #wrapped: PutawayStrategy
+    #priority: int
+    +getPriority(): int
+}
+
+class BatchControlDecorator {
+    +execute(): String
+}
+
+class ExpiryPriorityDecorator {
+    +execute(): String
+}
+
+class WholeSplitDecorator {
+    -template: ShelfTemplate
+    +execute(): String
+}
+
+PutawayStrategy <|.. NormalPutaway
+PutawayStrategy <|.. PutawayDecorator
+PutawayDecorator o--> PutawayStrategy : 包装
+PutawayDecorator <|-- BatchControlDecorator
+PutawayDecorator <|-- ExpiryPriorityDecorator
+PutawayDecorator <|-- WholeSplitDecorator
+WholeSplitDecorator --> ShelfTemplate : 读取层数
+
+@enduml

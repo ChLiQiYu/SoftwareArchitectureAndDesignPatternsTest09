@@ -1,0 +1,52 @@
+@startuml 拣货策略测试时序图
+
+actor "JUnit" as test
+participant "FlyweightTest" as ft
+participant "ShelfTemplateFactory" as factory
+participant "ConcreteShelfTemplate" as tmpl
+participant "Shelf" as shelf
+
+== 测试1: 模板复用 ==
+test -> ft: testTemplateReuse()
+ft -> factory: getTemplate("横梁式")
+factory --> ft: t1
+ft -> factory: getTemplate("横梁式")
+factory --> ft: t1(同一对象)
+ft -> ft: assertSame(t1, t2) ✓
+
+== 测试2: 不同模板 ==
+test -> ft: testDifferentTemplates()
+ft -> factory: getTemplate("横梁式")
+ft -> factory: getTemplate("驶入式")
+ft -> ft: assertNotSame + assertEquals类型 ✓
+
+== 测试3: 创建数量 ==
+test -> ft: testCreationCount()
+ft -> factory: 获取4种模板(共5次调用)
+ft -> factory: getCreationCount()
+factory --> ft: 4
+ft -> ft: assertEquals(4) ✓
+
+== 测试4: 不同库区复用 ==
+test -> ft: testShelfReuse()
+ft -> factory: getTemplate("横梁式")
+ft -> shelf: new Shelf("S-A-001","A区",tmpl)
+ft -> shelf: new Shelf("S-B-002","B区",tmpl)
+ft -> shelf: new Shelf("S-C-003","C区",tmpl)
+ft -> ft: assertSame(三个货架模板) ✓
+
+== 测试5: 禁用模板 ==
+test -> ft: testDisableTemplate()
+ft -> factory: disableTemplate("轻型置物架")
+ft -> factory: getTemplate("轻型置物架")
+factory --> ft: throws IllegalStateException
+ft -> ft: assertThrows ✓
+
+== 测试6: 恢复模板 ==
+test -> ft: testEnableTemplate()
+ft -> factory: enableTemplate("横梁式")
+ft -> factory: getTemplate("横梁式")
+factory --> ft: 模板对象
+ft -> ft: assertNotNull ✓
+
+@enduml

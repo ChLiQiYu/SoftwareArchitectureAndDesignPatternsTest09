@@ -1,0 +1,57 @@
+@startuml 拣货策略测试时序图
+
+actor "JUnit" as test
+participant "PickingStrategyTest" as pt
+participant "NormalPicking" as normal
+participant "WavePickingDecorator" as wave
+participant "ColdChainPickingDecorator" as cold
+participant "FragilePickingDecorator" as fragile
+
+== 测试1: 普通拣货 ==
+test -> pt: testNormalPicking()
+pt -> normal: execute()
+normal --> pt: "按库位顺序拣货"
+pt -> pt: assertEquals ✓
+
+== 测试2: 普通+波次+冷链 ==
+test -> pt: testWaveAndColdChainPicking()
+pt -> normal: new NormalPicking()
+pt -> wave: new WavePickingDecorator(normal)
+pt -> cold: new ColdChainPickingDecorator(wave)
+pt -> cold: execute()
+cold -> wave: execute()
+wave -> normal: execute()
+normal --> wave: "按库位顺序拣货"
+wave --> cold: "...拣货 -> 波次批量拣货"
+cold --> pt: "...拣货 -> 波次 -> 冷链"
+pt -> pt: assertTrue(包含三项规则) ✓
+
+== 测试3: 普通+易碎品 ==
+test -> pt: testFragilePicking()
+pt -> fragile: new FragilePickingDecorator(normal)
+pt -> fragile: execute()
+fragile -> normal: execute()
+normal --> fragile: "按库位顺序拣货"
+fragile --> pt: "...拣货 -> 禁止抛扔、二次复核"
+pt -> pt: assertTrue ✓
+
+== 测试4: 优先级验证 ==
+test -> pt: testPriority()
+pt -> cold: new ColdChainPickingDecorator(normal)
+pt -> fragile: new FragilePickingDecorator(normal)
+pt -> wave: new WavePickingDecorator(normal)
+pt -> pt: assertTrue(5<10<20) ✓
+
+== 测试5: 自定义优先级 ==
+test -> pt: testCustomPriority()
+pt -> wave: new WavePickingDecorator(normal, 1)
+pt -> fragile: new FragilePickingDecorator(normal, 100)
+pt -> pt: assertTrue(1 < 100) ✓
+
+== 测试6: 多重装饰执行顺序 ==
+test -> pt: testExecutionOrder()
+pt -> cold: new ColdChain(wave(fragile(normal)))
+pt -> cold: execute()
+pt -> pt: 验证 fragileIdx < waveIdx < coldIdx ✓
+
+@enduml

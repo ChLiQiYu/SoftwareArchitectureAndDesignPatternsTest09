@@ -1,0 +1,58 @@
+@startuml 联合应用时序图
+
+actor 用户
+participant "Main" as main
+participant "ShelfTemplateFactory" as factory
+participant "ConcreteShelfTemplate" as template
+participant "Shelf" as shelf
+participant "NormalPicking" as normalPick
+participant "WavePickingDecorator" as wavePick
+participant "ColdChainPickingDecorator" as coldPick
+participant "NormalPutaway" as normalPut
+participant "BatchControlDecorator" as batchPut
+participant "ExpiryPriorityDecorator" as expiryPut
+
+用户 -> main: 启动程序
+
+== 1. 获取货架模板（享元模式） ==
+main -> factory: getTemplate("驶入式")
+factory --> main: template1(首次创建)
+main -> factory: getTemplate("驶入式")
+factory --> main: template1(复用)
+
+main -> shelf: new Shelf("S-W-001", "D区", template1)
+main -> shelf: display()
+shelf -> template: display("S-W-001", "D区")
+template --> shelf: 货架编号:S-W-001, 库区:D区 | 模板类型:驶入式...
+shelf --> main: 完整货架信息
+
+== 2. 执行拣货（装饰器模式） ==
+main -> normalPick: new NormalPicking()
+main -> wavePick: new WavePickingDecorator(normalPick)
+main -> coldPick: new ColdChainPickingDecorator(wavePick)
+
+main -> coldPick: execute()
+coldPick -> wavePick: execute()
+wavePick -> normalPick: execute()
+normalPick --> wavePick: "按库位顺序拣货"
+wavePick --> coldPick: "按库位顺序拣货 -> 按波次聚合订单批量拣货"
+coldPick --> main: "按库位顺序拣货 -> 按波次聚合订单批量拣货 -> 低温管控、限定拣货月台"
+
+== 3. 执行上架（装饰器模式） ==
+main -> normalPut: new NormalPutaway()
+main -> batchPut: new BatchControlDecorator(normalPut)
+main -> expiryPut: new ExpiryPriorityDecorator(batchPut)
+
+main -> expiryPut: execute()
+expiryPut -> batchPut: execute()
+batchPut -> normalPut: execute()
+normalPut --> batchPut: "空闲库位就近上架"
+batchPut --> expiryPut: "空闲库位就近上架 -> 同批次集中存放"
+expiryPut --> main: "空闲库位就近上架 -> 同批次集中存放 -> 近效期放外侧"
+
+== 4. 验证享元复用 ==
+main -> factory: getCreationCount()
+factory --> main: 4(仅4种模板各创建1个)
+
+用户 <-- main: 打印完整结果
+@enduml
